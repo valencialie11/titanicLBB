@@ -1,0 +1,362 @@
+---
+title: "Titanic Survival Prediction Report"
+author: "Valencia Lie"
+date: "19 January 2020"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    number_section: true
+    toc_float:
+      collapsed: true
+    highlight: breezedark
+    theme: flatly
+    df_paged: paged
+    
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+RMS Titanic was a British passenger liner that sank in the North Atlantic Ocean in the early morning hours of April 15, 1912, after striking an iceberg during her maiden voyage from Southampton to New York City. Of the estimated 2,224 passengers and crew aboard, more than 1,500 died (including 815 of its passengers), making the sinking one of modern history's deadliest peacetime commercial marine disasters.
+
+![](RMS_Titanic_3.jpg)
+
+# Passengers' demographic
+
+The Titanic's passengers were divided into three separate classes determined by the price of their ticket: those travelling in first class, most of them the wealthiest passengers on board, included prominent members of the upper class, businessmen, politicians, high-ranking military personnel, industrialists, bankers, entertainers, socialites, and professional athletes. Second-class passengers were predominantly middle-class travellers and included professors, authors, clergymen, and tourists. Third-class or steerage passengers were primarily emigrants moving to the United States and Canada.
+
+Titanic's passengers numbered 1,317 people: 324 in first class, 285 in second class, and 708 in third class. Of these, 1680 were male and 434 were female; 112 children were aboard, the largest number of which were in third class. The ship was considerably under capacity on her maiden voyage, as she could accommodate 2,453 passengers—833 first class, 614 second class, and 1,006 third class.
+
+```{r}
+getwd()
+```
+
+
+```{r}
+setwd("/Users/valencialie/Desktop")
+```
+
+```{r}
+passenger <- read.csv (file = "data/train.csv")
+head(passenger)
+```
+
+```{r}
+str(passenger)
+```
+
+## Data cleansing
+
+```{r}
+passenger$Name <- as.character(passenger$Name)
+class(passenger$Name)
+```
+
+```{r}
+passenger$Ticket <- as.character(passenger$Ticket)
+class(passenger$Ticket)
+```
+
+```{r}
+passenger$Cabin <- as.character(passenger$Cabin)
+class(passenger$Cabin)
+```
+### Missing Data
+
+```{r}
+colSums(is.na(passenger))
+```
+
+Although 177 is less than half of the total amount of data, the information on the passengers' age is essential and crucial in determining their likelihood of surviving the shipwreck. Thus, we will fill the missing values with the median age of all passengers.
+
+```{r}
+library(caret)
+passenger_new <- preProcess(passenger, method = c("medianImpute"))
+passenger_new <- predict(passenger_new, passenger)
+head(passenger_new)
+```
+
+Because the data on most of the Cabin column is missing and it is unlikely for us to acquire important insight from it, we will delete the column Cabin.
+
+```{r}
+passenger_newnew <- passenger_new[,-11]
+head(passenger_newnew)
+```
+
+## Subsetting data
+
+### Gender and age
+
+In order to find insight on the survivality of these passengers, we separate the survivors and those who did not survive the shipwreck.
+
+```{r}
+survivors <- passenger_newnew[passenger_newnew$Survived == 1,]
+head(survivors)
+
+notsurvive <- passenger_newnew[passenger_newnew$Survived == 0,]
+
+head(notsurvive)
+```
+
+```{r}
+table(notsurvive$Sex)
+table(survivors$Sex)
+```
+
+From this table alone, we can tell that the ratio of a woman surviving the ship wreck to a man is about 2.14:1, while the ratio of a man not surviving to a woman not surviving is 5.78:1.
+
+This ratio is logical because during the shipwreck, women and children were given priorities to the life boats, which boost their chance of surviving the shipwreck, compared to men.
+
+Let's take a look on how age determines the survival of women.
+
+```{r}
+agg1 <- as.data.frame(prop.table(table(survivors$Sex == "female", survivors$Age)))
+agg2 <- agg1[agg1$Var1 == TRUE,]
+agg6 <- agg2[order(agg2$Freq, decreasing = T),]
+head(agg6)
+
+```
+
+
+```{r}
+library(ggplot2)
+
+ggplot(data = agg2, mapping = aes(x = Var2, y = Freq)) +
+geom_col(aes(fill = Freq)) +
+  scale_fill_viridis_c() +
+  labs(x= "Age", y= "Probability of survival", title = "Probability of survival for women based on age", fill = "Probability") +
+  coord_flip()
+```
+
+From the above data, we can tell that among the women survivors, those of age 28 has the highest probability of survival with 0.119883041.
+
+On the other spectrum, let's examine how age determines the survival of men from the shipwreck.
+
+```{r}
+agg3 <- as.data.frame(prop.table(table(survivors$Sex == "male", survivors$Age)))
+agg4 <- agg3[agg3$Var1 == TRUE,]
+head(agg4)
+agg5 <- agg4[order(agg4$Freq, decreasing = T),]
+head(agg5)
+```
+
+
+```{r}
+ggplot(data = agg4, mapping = aes(x = Var2, y = Freq)) +
+geom_col(aes(fill = Freq)) +
+  scale_fill_viridis_c() +
+  labs(x= "Age", y= "Probability of survival for men", title = "Probability of survival based on age", fill = "Probability") +
+  coord_flip()
+```
+
+From the above data, we can tell that among the men survivors, those of age 28 has the highest probability of survival with 0.052631579.
+
+Thus, with this we can conclude that those of age 28, regardless of gender, are most likely to survive the shipwreck.
+
+There is a logical reasoning behind the number 28. 25-30 is said by scientists to be the age range in which the human body is considered to be the fittest and strongest. This makes the deduction that passengers of age 28 to have the best chance of survival a sound one.
+
+On the other hand,
+
+```{r}
+s1 <- as.data.frame(prop.table(table(notsurvive$Sex == "female", notsurvive$Age)))
+s2 <- s1[s1$Var1 == TRUE,]
+s6 <- s2[order(s2$Freq, decreasing = T),]
+head(s6)
+
+```
+
+```{r}
+library(ggplot2)
+
+ggplot(data = s2, mapping = aes(x = Var2, y = Freq)) +
+geom_col(aes(fill = Freq)) +
+  scale_fill_viridis_c() +
+  labs(x= "Age", y= "Probability of non survival", title = "Probability of non survival for women based on age", fill = "Probability") +
+  coord_flip()
+```
+
+From the above data, we can tell that among the women who did not survive, those of age 28 have the highest non survival probability of 0.034608379.
+
+For men,
+
+```{r}
+s3 <- as.data.frame(prop.table(table(notsurvive$Sex == "male", notsurvive$Age)))
+s4 <- s3[s3$Var1 == TRUE,]
+head(s4)
+s5 <- s4[order(s4$Freq, decreasing = T),]
+head(s5)
+```
+
+```{r}
+library(ggplot2)
+
+ggplot(data = s4, mapping = aes(x = Var2, y = Freq)) +
+geom_col(aes(fill = Freq)) +
+  scale_fill_viridis_c() +
+  labs(x= "Age", y= "Probability of non survival", title = "Probability of non survival for men based on age", fill = "Probability") +
+  coord_flip()
+```
+
+Similarly, we can tell that among the men who did not survive, those of age 28 have the highest non survival probability of 0.225865209.
+
+This piece of information may seem contradicting to what we just assumed earlier as apparently the age 28 has the highest probability of survival and non-survival for both men and women.
+
+### Gender and Passenger class
+
+Next, we will try to find which class gives passengers the best chance of survival.
+
+```{r}
+table(survivors$Pclass, survivors$Sex)
+```
+
+From the data above, we can tell that first class passengers have the best chance of survival as 39% of women survivors are first class passengers while 41% of men survivors are first class passengers. Together, first class passengers make up almost 40% of the entire number of survivors.
+
+Second class passengers have the least chance of survival as only 30% of women survivors are second class passengers and 16% of men survivors are second class passengers. Together, second class passengers only make up about 25% of the entire number of survivors.
+
+Logically speaking, we would expect first class passengers to have greater priority to board the life boat, followed by second class passengers and lastly, third class passengers. However, this is not the case as second place passengers have the least chance of survival.
+
+According to sources, this is possible because when Captain Smith ordered his officers to put the "women and children in and lower away", his 2 officers, Murdoch and Lightoller, interpreted the evacuation order differently: Murdoch as women and children first, while Lightoller as women and children only. Lightoller lowered lifeboats with empty seats if there were not any women and children waiting to board, while Murdoch only allowed a limited number of men to board if all the nearby women and children had already embarked. This had a significant effect on the survival rates of the men aboard Titanic, whose chances of survival came to depend on which side of the ship they tried to find lifeboat seats.
+
+Thus, it is likely that most of the second class men tried to enter lifeboats guarded by Lightoller, causing their chance of survival to decrease tremendously, hence accounting for second class passengers' least chance of survival.
+
+# Prediction
+
+Using the insights we gained, we will try to predict whether these passengers survive the shipwreck.
+```{r}
+test <- read.csv(file = "data/test.csv")
+head(test)
+```
+
+## Data cleansing
+
+```{r}
+str(test)
+```
+
+```{r}
+test$Name <- as.character(test$Name)
+test$Ticket <- as.character(test$Ticket)
+test$Cabin <- as.character(test$Cabin)
+```
+
+### Missing Data
+
+```{r}
+colSums(is.na(test))
+```
+
+Because age is important, we would have to compute the median to fill in the missing data
+
+```{r}
+library(caret)
+test_new <- preProcess(test, method = c("medianImpute"))
+test_new <- predict(test_new, test)
+head(test_new)
+```
+
+For Cabin, we would delete the whole column because it is not meaningful and it has way too many missing data.
+
+```{r}
+test_newnew <- test_new[,-10]
+head(test_newnew)
+```
+## Subsetting data
+
+```{r}
+prop.table(table(passenger_newnew$Survived == 1))
+```
+
+```{r}
+testF1 <- test_newnew[test_newnew$Pclass == 1 & test_newnew$Sex == "female",]
+
+head(testF1)
+```
+
+For example, we would like to predict whether Snyder, Mrs. John Pillsbury (Nelle Stevenson), who was of age 23, survived the shipwreck by calculating the probability of a 23 year old woman surviving using a tree diagram and our past data.
+
+```{r}
+surv23 <- survivors[survivors$Age == 23 & survivors$Sex == "female",]
+head(surv23)
+
+prop.table(table(surv23$Pclass))
+```
+This shows that among the 23 year olds who survive, half is from first class and 0.25 is from second and third class.
+
+By drawing a tree diagram, the probability of a 23 year old in a first class to survive would be 0.383838 (from the probability of a passenger surviving) multiplied by 0.68128655 (from the probability of the survivors being women) multiplied by 0.016393443 (probability of the women survivor being of age 23) multiplied by 0.5 (probability of a women survivor of age 23 was in first class)
+
+```{r}
+0.38383838*0.68128655*0.016393443*0.5
+```
+
+Thus, the probability of Snyder, Mrs. John Pillsbury (Nelle Stevenson) surviving the shipwreck would be 0.002143475.
+
+```{r}
+testM3 <- test_newnew[test_newnew$Pclass == 3 & test_newnew$Sex == "male",]
+
+head(testM3)
+```
+
+Another example would be to predict whether Kelly, Mr. James of age 34.5 in third class would survive. For simplicity, we would round it up to 35.
+
+```{r}
+surv35 <- survivors[survivors$Age == 35 & survivors$Sex == "male",]
+head(surv35)
+
+prop.table(table(surv35$Pclass))
+```
+
+According to our data, no man of age 35 in the third class survived the shipwreck. Thus it is most likely that Kelly, Mr Jones would not survive the shipwreck.
+
+##Overall Conclusion
+
+First and foremost, there is in no way that the probability that is calculated is 100% fool proof and accurate as there may be many changing variables that may mess with the probability. 
+
+However, based on the probability that we calculated, the hypothesis that I put forth is that if the probability is greater than 0.00116515, it is likely that such a woman passenger (with the same age and class) survives whereas if the probability is less than 0.00116515, it is likely that such a woman passenger (with the same age and class) is unable to survive.
+
+On the other hand, if the probability is greater than 0.0002652351, it is likely that such a man passenger (with the same age and class) survives whereas if the probability is less than 0.0002652351, it is likely that such a man passenger (with the same age and class) is unable to survive.
+
+This hypothesis is calculated from
+
+```{r}
+survivorsM <- survivors[survivors$Sex == "male",]
+survivorsF <- survivors[survivors$Sex == "female",]
+```
+
+
+```{r}
+# Menghapus nilai frekuensi yang bernilai 0
+agg6 <- agg6[-(50:65),]
+mean(agg6$Freq)
+
+agg5 <- agg5[-(50:65),]
+mean(agg5$Freq)
+
+```
+
+Assuming that woman of all ages who survive has the same probability of 0.33333 of being in first class, second or third,
+
+The hypothesis of the probability of a woman surviving is if the probability is greater than:
+```{r}
+0.383838*0.68128655*0.01336675*0.333333
+#Probability of survival * probability of survivors being woman * mean probability of age of woman survivors * mean probability of each class
+```
+
+For men, assuming that man of all ages who survive has the same probability of 0.33333 of being in first class, second or third,
+
+The hypothesis of the probability of a man surviving is if the probability is greater than:
+
+```{r}
+0.383838*0.318713465*0.006504356*0.333333
+#Probability of survival * probability of survivors being man * mean probability of age of man survivors * mean probability of each class
+```
+
+#References
+https://en.wikipedia.org/wiki/RMS_Titanic
+
+https://en.wikipedia.org/wiki/Passengers_of_the_RMS_Titanic
+
